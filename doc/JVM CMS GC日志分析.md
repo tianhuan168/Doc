@@ -180,7 +180,7 @@ CMS Full GC 拆分开来，涉及的阶段比较多，下面分别来介绍各�
 通过以上5个阶段的标记，老年代所有存活的对象已经被标记并且现在要通过Garbage Collector采用清扫的方式回收那些不能用的对象了。
 #### 阶段 6: Concurrent Sweep
 和应用线程同时进行，不需要STW。这个阶段的目的就是移除那些不用的对象，回收他们占用的空间并且为将来使用。
-![image](http://images2015.cnblogs.com/blog/893686/201608/893686-20160823135606917-2057410538.jpg)
+![image](https://github.com/tianhuan168/Doc/raw/master/img/5.jpg)
 分析：
 
 
