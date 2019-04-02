@@ -53,51 +53,67 @@ Connector最底层使用的是Socket来进行连接的，Request和Response是�
 Tomcat既然处理请求，那么肯定需要先接收到这个请求，接收请求这个东西我们首先就需要看一下Connector！
  
 四、Connector架构分析
-Connector用于接受请求并将请求封装成Request和Response，然后交给Container进行处理，Container处理完之后在交给Connector返回给客户端。
+Connector用于接受请求并将请求封装成Request和Response，然后交给Container进行处理，
+Container处理完之后在交给Connector返回给客户端。
 因此，我们可以把Connector分为四个方面进行理解：
-（1）Connector如何接受请求的？ 
-（2）如何将请求封装成Request和Response的？ 
-（3）封装完之后的Request和Response如何交给Container进行处理的？ 
-（4）Container处理完之后如何交给Connector并返回给客户端的？
+  - Connector如何接受请求的？ 
+  - 如何将请求封装成Request和Response的？ 
+  - 封装完之后的Request和Response如何交给Container进行处理的？ 
+-- Container处理完之后如何交给Connector并返回给客户端的？
 首先看一下Connector的结构图（图B），如下所示：
+
 ![image](https://github.com/tianhuan168/Doc/raw/master/img/9.webp)
 
-Connector就是使用ProtocolHandler来处理请求的，不同的ProtocolHandler代表不同的连接类型，比如：Http11Protocol使用的是普通Socket来连接的，Http11NioProtocol使用的是NioSocket来连接的。
+Connector就是使用ProtocolHandler来处理请求的，不同的ProtocolHandler代表不同的连接类型，
+比如：Http11Protocol使用的是普通Socket来连接的，Http11NioProtocol使用的是NioSocket来连接的。
 其中ProtocolHandler由包含了三个部件：Endpoint、Processor、Adapter。
-（1）Endpoint用来处理底层Socket的网络连接，Processor用于将Endpoint接收到的Socket封装成Request，Adapter用于将Request交给Container进行具体的处理。
-（2）Endpoint由于是处理底层的Socket网络连接，因此Endpoint是用来实现TCP/IP协议的，而Processor用来实现HTTP协议的，Adapter将请求适配到Servlet容器进行具体的处理。
-（3）Endpoint的抽象实现AbstractEndpoint里面定义的Acceptor和AsyncTimeout两个内部类和一个Handler接口。Acceptor用于监听请求，AsyncTimeout用于检查异步Request的超时，Handler用于处理接收到的Socket，在内部调用Processor进行处理。
-至此，我们应该很轻松的回答（1）（2）（3）的问题了，但是（4）还是不知道，那么我们就来看一下Container是如何进行处理的以及处理完之后是如何将处理完的结果返回给Connector的？
-五、Container架构分析
+  - Endpoint用来处理底层Socket的网络连接，Processor用于将Endpoint接收到的Socket封装成Request，Adapter用于将Request交给Container进行具体的处理。
+  - Endpoint由于是处理底层的Socket网络连接，因此Endpoint是用来实现TCP/IP协议的，而Processor用来实现HTTP协议的，Adapter将请求适配到Servlet容器进行具体的处理。
+  - Endpoint的抽象实现AbstractEndpoint里面定义的Acceptor和AsyncTimeout两个内部类和一个Handler接口。Acceptor用于监听请求，AsyncTimeout用于检查异步Request的超时，Handler用于处理接收到的Socket，在内部调用Processor进行处理。
+
+至此，我们应该很轻松的回答（1）（2）（3）的问题了，但是（4）还是不知道，
+那么我们就来看一下Container是如何进行处理的以及处理完之后是如何将处理完的结果返回给Connector的？
+
+### 五、Container架构分析
 Container用于封装和管理Servlet，以及具体处理Request请求，在Connector内部包含了4个子容器，结构图如下（图C）：
+
 ![image](https://github.com/tianhuan168/Doc/raw/master/img/10.webp)
 
 4个子容器的作用分别是：
-（1）Engine：引擎，用来管理多个站点，一个Service最多只能有一个Engine； 
-（2）Host：代表一个站点，也可以叫虚拟主机，通过配置Host就可以添加站点； 
-（3）Context：代表一个应用程序，对应着平时开发的一套程序，或者一个WEB-INF目录以及下面的web.xml文件； 
-（4）Wrapper：每一Wrapper封装着一个Servlet；
+  - Engine：引擎，用来管理多个站点，一个Service最多只能有一个Engine； 
+  - Host：代表一个站点，也可以叫虚拟主机，通过配置Host就可以添加站点； 
+  - Context：代表一个应用程序，对应着平时开发的一套程序，或者一个WEB-INF目录以及下面的web.xml文件； 
+  - Wrapper：每一Wrapper封装着一个Servlet；
 下面找一个Tomcat的文件目录对照一下，如下图所示：
+
 ![image](https://github.com/tianhuan168/Doc/raw/master/img/11.webp)
 
-Context和Host的区别是Context表示一个应用，我们的Tomcat中默认的配置下webapps下的每一个文件夹目录都是一个Context，其中ROOT目录中存放着主应用，其他目录存放着子应用，而整个webapps就是一个Host站点。
-我们访问应用Context的时候，如果是ROOT下的则直接使用域名就可以访问，例如：www.ledouit.com,如果是Host（webapps）下的其他应用，则可以使用www.ledouit.com/docs进行访问，当然默认指定的根应用（ROOT）是可以进行设定的，只不过Host站点下默认的主营用是ROOT目录下的。
-看到这里我们知道Container是什么，但是还是不知道Container是如何进行处理的以及处理完之后是如何将处理完的结果返回给Connector的？别急！下边就开始探讨一下Container是如何进行处理的！
-六、Container如何处理请求的
+Context和Host的区别是Context表示一个应用，我们的Tomcat中默认的配置下webapps下的每一个文件夹目录都是一个Context，
+其中ROOT目录中存放着主应用，其他目录存放着子应用，而整个webapps就是一个Host站点。
+我们访问应用Context的时候，如果是ROOT下的则直接使用域名就可以访问，
+例如：www.ledouit.com,如果是Host（webapps）下的其他应用，则可以使用www.ledouit.com/docs进行访问，
+当然默认指定的根应用（ROOT）是可以进行设定的，只不过Host站点下默认的主营用是ROOT目录下的。
+看到这里我们知道Container是什么，但是还是不知道Container是如何进行处理的以及处理完之后是如何将处理完的结果
+返回给Connector的？别急！下边就开始探讨一下Container是如何进行处理的！
+
+### 六、Container如何处理请求的
 Container处理请求是使用Pipeline-Valve管道来处理的！（Valve是阀门之意）
-Pipeline-Valve是责任链模式，责任链模式是指在一个请求处理的过程中有很多处理者依次对请求进行处理，每个处理者负责做自己相应的处理，处理完之后将处理后的请求返回，再让下一个处理着继续处理。
+Pipeline-Valve是责任链模式，责任链模式是指在一个请求处理的过程中有很多处理者依次对请求进行处理，
+每个处理者负责做自己相应的处理，处理完之后将处理后的请求返回，再让下一个处理着继续处理。
+
 ![image](https://github.com/tianhuan168/Doc/raw/master/img/12.webp)
 
 但是！Pipeline-Valve使用的责任链模式和普通的责任链模式有些不同！区别主要有以下两点：
-（1）每个Pipeline都有特定的Valve，而且是在管道的最后一个执行，这个Valve叫做BaseValve，BaseValve是不可删除的；
-（2）在上层容器的管道的BaseValve中会调用下层容器的管道。
-我们知道Container包含四个子容器，而这四个子容器对应的BaseValve分别在：StandardEngineValve、StandardHostValve、StandardContextValve、StandardWrapperValve。
+  - 每个Pipeline都有特定的Valve，而且是在管道的最后一个执行，这个Valve叫做BaseValve，BaseValve是不可删除的；
+  - 在上层容器的管道的BaseValve中会调用下层容器的管道。
+我们知道Container包含四个子容器，而这四个子容器对应的BaseValve分别在：
+**StandardEngineValve**、**StandardHostValve**、**StandardContextValve**、**StandardWrapperValve**。
 Pipeline的处理流程图如下（图D）：
 
 ![image](https://github.com/tianhuan168/Doc/raw/master/img/13.webp)
 
-（1）Connector在接收到请求后会首先调用最顶层容器的Pipeline来处理，这里的最顶层容器的Pipeline就是EnginePipeline（Engine的管道）；
-（2）在Engine的管道中依次会执行EngineValve1、EngineValve2等等，最后会执行StandardEngineValve，在StandardEngineValve中会调用Host管道，然后再依次执行Host的HostValve1、HostValve2等，最后在执行StandardHostValve，然后再依次调用Context的管道和Wrapper的管道，最后执行到StandardWrapperValve。
-（3）当执行到StandardWrapperValve的时候，会在StandardWrapperValve中创建FilterChain，并调用其doFilter方法来处理请求，这个FilterChain包含着我们配置的与请求相匹配的Filter和Servlet，其doFilter方法会依次调用所有的Filter的doFilter方法和Servlet的service方法，这样请求就得到了处理！
-（4）当所有的Pipeline-Valve都执行完之后，并且处理完了具体的请求，这个时候就可以将返回的结果交给Connector了，Connector在通过Socket的方式将结果返回给客户端。
+  - Connector在接收到请求后会首先调用最顶层容器的Pipeline来处理，这里的最顶层容器的Pipeline就是EnginePipeline（Engine的管道）；
+  - 在Engine的管道中依次会执行EngineValve1、EngineValve2等等，最后会执行StandardEngineValve，在StandardEngineValve中会调用Host管道，然后再依次执行Host的HostValve1、HostValve2等，最后在执行StandardHostValve，然后再依次调用Context的管道和Wrapper的管道，最后执行到StandardWrapperValve。
+  - 当执行到StandardWrapperValve的时候，会在StandardWrapperValve中创建FilterChain，并调用其doFilter方法来处理请求，这个FilterChain包含着我们配置的与请求相匹配的Filter和Servlet，其doFilter方法会依次调用所有的Filter的doFilter方法和Servlet的service方法，这样请求就得到了处理！
+  - 当所有的Pipeline-Valve都执行完之后，并且处理完了具体的请求，这个时候就可以将返回的结果交给Connector了，Connector在通过Socket的方式将结果返回给客户端。
 
